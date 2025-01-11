@@ -81,8 +81,16 @@ def wifi_handler_thread_function(threadname,tid ):
         else:
             balluHeater.setWifiConnected( True );
             balluHeater.update_display();
-            while( wlan.isconnected() ):
+            while( True ):
+                if  balluHeater.wifiMutex.acquire():
+                    if wlan.isconnected() == False:
+                        break;
+
+                    balluHeater.wifiMutex.release();
+
                 time.sleep(1);
+
+
 
 #mqtt part
 def sub_cb(topic, msg):
@@ -150,6 +158,8 @@ class BalluHeater:
         configFileName = "config.json"
 
         def __init__(self):
+
+            self.wifiMutex = _thread.allocate_lock();
 
             self.displayState = DisplayState.TemperatureCurrent;
             self.displayStateTimer = 0;
@@ -476,7 +486,12 @@ while True:
             last_message = time.time()
             counter += 1
 
-    if( wifimgr.wlan_sta.isconnected() ):
+    connState = False;
+    if balluHeater.wifiMutex.acquire():
+        connState = wifimgr.wlan_sta.isconnected()
+        balluHeater.wifiMutex.release();
+
+    if( connState == True ):
         if( mqtt_connected == False ):
             try:
                 print("MQTT trying to connect")
@@ -487,6 +502,8 @@ while True:
                 print("MQTT connection failed")
                 time.sleep(1)
                 mqtt_connected = False;
+
+
 
 
     #doWeb();
